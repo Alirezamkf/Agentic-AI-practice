@@ -1,0 +1,61 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Validate frontend npm install",
+			"type": "shell",
+			"command": "Set-Location DataMiningSuperstore-1\\frontend; npm install",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Validate frontend npm build",
+			"type": "shell",
+			"command": "Set-Location DataMiningSuperstore-1\\frontend; npm run build",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Validate backend health endpoint",
+			"type": "shell",
+			"command": "Set-Location DataMiningSuperstore-1\\backend; if (-not (Test-Path .venv\\Scripts\\python.exe)) { py -3 -m venv .venv; Write-Output 'VENV_CREATED=True' } else { Write-Output 'VENV_CREATED=False' }; .venv\\Scripts\\python.exe -m pip install -r requirements.txt; .venv\\Scripts\\python.exe -c \"from fastapi.testclient import TestClient; from app.main import app; response = TestClient(app).get('/api/health'); print('HEALTH_STATUS=' + str(response.status_code)); print('HEALTH_BODY=' + response.text); raise SystemExit(0 if response.status_code == 200 and response.json().get('status') == 'ok' else 1)\"",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Validate backend health endpoint retry",
+			"type": "shell",
+			"command": "Set-Location DataMiningSuperstore-1\\backend; if (-not (Test-Path .venv\\Scripts\\python.exe)) { py -3 -m venv .venv; Write-Output 'VENV_CREATED=True' } else { Write-Output 'VENV_CREATED=False' }; .venv\\Scripts\\python.exe -m pip install -r requirements.txt; .venv\\Scripts\\python.exe -c 'from fastapi.testclient import TestClient; from app.main import app; response = TestClient(app).get(\"/api/health\"); print(\"HEALTH_STATUS=\" + str(response.status_code)); print(\"HEALTH_BODY=\" + response.text); raise SystemExit(0 if response.status_code == 200 and response.json().get(\"status\") == \"ok\" else 1)'",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Test backend health with TestClient",
+			"type": "shell",
+			"command": "Set-Location DataMiningSuperstore-1\\backend; .venv\\Scripts\\python.exe -c \"from fastapi.testclient import TestClient; from app.main import app; response = TestClient(app).get(`\"/api/health`\\\"); print(`\"HEALTH_STATUS=`\" + str(response.status_code)); print(`\"HEALTH_BODY=`\" + response.text); raise SystemExit(0 if response.status_code == 200 and response.json().get(`\"status`\") == `\"ok`\") else 1)\"",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Test backend health over HTTP",
+			"type": "shell",
+			"command": "Set-Location DataMiningSuperstore-1\\backend; $server = Start-Process -FilePath '.venv\\Scripts\\python.exe' -ArgumentList '-m','uvicorn','app.main:app','--host','127.0.0.1','--port','8765' -PassThru; $response = $null; for ($attempt = 0; $attempt -lt 100 -and $null -eq $response; $attempt++) { try { $response = Invoke-WebRequest -Uri 'http://127.0.0.1:8765/api/health' -UseBasicParsing -ErrorAction Stop } catch {} }; if ($null -eq $response) { Write-Output 'HEALTH_REQUEST_FAILED=True'; Stop-Process -Id $server.Id -Force -ErrorAction SilentlyContinue; exit 1 }; Write-Output ('HEALTH_STATUS=' + $response.StatusCode); Write-Output ('HEALTH_BODY=' + $response.Content); Stop-Process -Id $server.Id -Force -ErrorAction SilentlyContinue; if ($response.StatusCode -ne 200 -or $response.Content -notmatch '\"status\":\"ok\"') { exit 1 }",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Confirm backend health result",
+			"type": "shell",
+			"command": "Set-Location DataMiningSuperstore-1\\backend; $server = Start-Process -FilePath '.venv\\Scripts\\python.exe' -ArgumentList '-m','uvicorn','app.main:app','--host','127.0.0.1','--port','8766' -PassThru; $response = $null; for ($attempt = 0; $attempt -lt 100 -and $null -eq $response; $attempt++) { try { $response = Invoke-WebRequest -Uri 'http://127.0.0.1:8766/api/health' -UseBasicParsing -ErrorAction Stop } catch {} }; if ($null -eq $response) { Write-Output 'HEALTH_REQUEST_FAILED=True'; Stop-Process -Id $server.Id -Force -ErrorAction SilentlyContinue; exit 1 }; $body = $response.Content | ConvertFrom-Json; Write-Output ('HEALTH_STATUS=' + $response.StatusCode); Write-Output ('HEALTH_BODY=' + $response.Content); $valid = ($response.StatusCode -eq 200 -and $body.status -eq 'ok'); Stop-Process -Id $server.Id -Force -ErrorAction SilentlyContinue; if ($valid) { Write-Output 'HEALTH_VALID=True'; exit 0 } else { Write-Output 'HEALTH_VALID=False'; exit 1 }",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Verify parseability and CSV integrity",
+			"type": "shell",
+			"command": "Set-Location DataMiningSuperstore-1; Write-Output 'COMMAND=python -m compileall -q backend\\app'; .\\backend\\.venv\\Scripts\\python.exe -m compileall -q backend\\app; $compileExit = $LASTEXITCODE; Write-Output ('PYTHON_COMPILE_EXIT=' + $compileExit); $csv = Get-Item '.\\data\\superstore-sales.csv' -ErrorAction SilentlyContinue; if ($null -eq $csv) { Write-Output 'CSV_EXISTS=False'; exit 1 } else { Write-Output 'CSV_EXISTS=True'; Write-Output ('CSV_SIZE_BYTES=' + $csv.Length); Write-Output ('CSV_SHA256=' + (Get-FileHash $csv.FullName -Algorithm SHA256).Hash) }; Write-Output 'GIT_STATUS_TARGETS='; git status --short -- backend frontend data\\superstore-sales.csv; exit $compileExit",
+			"isBackground": false,
+			"problemMatcher": []
+		}
+	]
+}
